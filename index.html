@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Redactor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+            text-align: center;
+        }
+        #imageContainer {
+            position: relative;
+            max-width: 100%;
+            overflow: hidden;
+            margin: 20px auto;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+        }
+        #fileInput {
+            display: block;
+            margin: 10px auto;
+        }
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 250px;
+            max-width: 100%;
+            padding: 15px;
+            margin: 10px auto;
+            border-radius: 25px;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+        .button-icon {
+            width: 15px;
+            height: 15px;
+            margin-right: 5px;
+        }
+        .button-text {
+            padding-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div id="imageContainer">
+        <canvas id="canvas"></canvas>
+    </div>
+    <input type="file" id="fileInput">
+    <a href="#" id="downloadLink" download="redacted_image.png" class="button" style="display: none;">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="button-icon">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 8.25H7.5a2.25 2.25 0 0 0-2.25 2.25v9a2.25 2.25 0 0 0 2.25 2.25h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25H15M9 12l3 3m0 0 3-3m-3 3V2.25" />
+        </svg>
+        <span class="button-text">Download Redacted Image</span>
+    </a>
+    <button id="clearButton" class="button" style="display: none;">
+        Clear Boxes
+    </button>
+
+    <script>
+        var imageContainer = document.getElementById('imageContainer');
+        var downloadLink = document.getElementById('downloadLink');
+        var fileInput = document.getElementById('fileInput');
+        var clearButton = document.getElementById('clearButton');
+
+        var img = new Image();
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+        var drawing = false;
+        var startX, startY;
+        var endX, endY;
+        var boxes = []; // Array to store drawn boxes
+
+        fileInput.addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            var reader = new FileReader();
+            reader.onload = function(event) {
+                img.onload = function() {
+                    var aspectRatio = img.width / img.height;
+                    var maxWidth = Math.min(window.innerWidth, imageContainer.offsetWidth);
+                    var maxHeight = Math.min(window.innerHeight, window.innerWidth / aspectRatio);
+                    canvas.width = maxWidth;
+                    canvas.height = maxWidth / aspectRatio;
+                    imageContainer.style.height = canvas.height + 'px';
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        canvas.addEventListener('mousedown', function(e) {
+            startX = e.clientX - canvas.getBoundingClientRect().left;
+            startY = e.clientY - canvas.getBoundingClientRect().top;
+            drawing = true;
+        });
+
+        canvas.addEventListener('mouseup', function(e) {
+            if (drawing) {
+                endX = e.clientX - canvas.getBoundingClientRect().left;
+                endY = e.clientY - canvas.getBoundingClientRect().top;
+                drawing = false;
+                storeBoxCoordinates(); // Store the box coordinates
+            }
+        });
+
+        canvas.addEventListener('mousemove', function(e) {
+            if (!drawing) return;
+            endX = e.clientX - canvas.getBoundingClientRect().left;
+            endY = e.clientY - canvas.getBoundingClientRect().top;
+            drawRect();
+        });
+
+        function drawRect() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'black';
+            
+            // Draw all stored boxes
+            boxes.forEach(function(box) {
+                var rectWidth = box.endX - box.startX;
+                var rectHeight = box.endY - box.startY;
+                ctx.fillRect(box.startX, box.startY, rectWidth, rectHeight);
+            });
+            
+            // Draw the currently drawn box
+            var rectWidth = endX - startX;
+            var rectHeight = endY - startY;
+            ctx.fillRect(startX, startY, rectWidth, rectHeight);
+        }
+
+        function storeBoxCoordinates() {
+            // Store the coordinates of the drawn box
+            boxes.push({ startX: startX, startY: startY, endX: endX, endY: endY });
+            // Update the download link
+            downloadLink.href = canvas.toDataURL('image/png');
+            downloadLink.style.display = 'block';
+            // Show the clear button
+            clearButton.style.display = 'inline-block';
+        }
+
+        clearButton.addEventListener('click', function() {
+            // Clear the boxes array
+            boxes = [];
+            // Redraw the canvas without any boxes
+            drawRect();
+            // Hide the clear button
+            clearButton.style.display = 'none';
+            // Hide the download link
+            downloadLink.style.display = 'none';
+        });
+    </script>
+</body>
+</html>
